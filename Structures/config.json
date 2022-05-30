@@ -1,0 +1,8 @@
+{
+    "APIs": [
+		{
+			"name": "Perspective API Key",
+			"apiKey": "YOUR_API_KEY"
+		}
+	]
+}
