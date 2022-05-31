@@ -2,7 +2,7 @@
  * Author: Amit Kumar
  * Github: https://github.com/AmitKumarHQ
  * Created On: 10th April 2022
- * Last Modified On: 9th May 2022
+ * Last Modified On: 31th May 2022
  */
 
 const {
@@ -12,8 +12,6 @@ const {
 	MessageAttachment,
 } = require("discord.js");
 const config = require("../../Structures/config.json");
-const { ChartJSNodeCanvas } = require("chartjs-node-canvas");
-const translate = require("translate-google");
 
 const DB = require("../../Structures/Schemas/ModerationDB");
 
@@ -21,6 +19,8 @@ const Perspective = require("perspective-api-client");
 const perspective = new Perspective({
 	apiKey: config.APIs[0].apiKey,
 });
+
+const { ChartJSNodeCanvas } = require("chartjs-node-canvas");
 
 module.exports = {
 	name: "messageCreate",
@@ -34,22 +34,58 @@ module.exports = {
 		const { author, member, content, guild, channel } = message;
 
 		const messageContent = message.content.toLowerCase().split(" ");
-		if (
-			author.bot ||
-			member.permissions.has([
-				"ADMINISTRATOR",
-				"MANAGE_GUILD",
-				"MODERATE_MEMBERS",
-			])
-		)
-			return; // Ignore
 
-		// Language Translation
-		const langText = await translate(content, { to: "en" });
+		// Database
+		const docs = await DB.findOne({
+			GuildID: guild.id,
+		});
+
+		if (!docs) return;
+		const {
+			Punishments,
+			LogChannelIDs,
+			ChannelIDs,
+			BypassUsers,
+			BypassRoles,
+		} = docs;
+
+		const low = Punishments[0];
+		const medium = Punishments[1];
+		const high = Punishments[2];
+		const logChannels = LogChannelIDs;
+
+		// BYPASS CHECK
+
+		try {
+			if (
+				BypassUsers.includes(author.id) ||
+				member.permissions.has([
+					`ADMINISTRATOR`,
+					`MODERATE_MEMBERS`,
+					`BAN_MEMBERS`,
+				]) ||
+				author.bot
+			) {
+				return;
+			}
+
+			if (BypassRoles.length > 0) {
+				for (const role of BypassRoles) {
+					if (member.roles.cache.has(role)) {
+						return;
+					}
+				}
+			}
+		} catch (err) {
+			console.log(err);
+		}
+
+		// TODO: Add Language Translation
+		const langText = messageContent;
 
 		const analyzeRequest = {
 			comment: {
-				text: langText,
+				text: messageContent.toString(),
 			},
 			requestedAttributes: {
 				TOXICITY: {},
@@ -129,21 +165,6 @@ module.exports = {
 		const image = await canvas.renderToBuffer(chartConfig);
 		const attachment = new MessageAttachment(image, "chart.png");
 
-		// Database
-		const docs = await DB.findOne({
-			GuildID: guild.id,
-		});
-
-		if (!docs) return;
-
-		const { Punishments, LogChannelIDs, ChannelIDs } = docs;
-
-		const low = Punishments[0];
-		const medium = Punishments[1];
-		const high = Punishments[2];
-
-		const logChannels = LogChannelIDs;
-
 		// Action
 		if (ChannelIDs.includes(channel.id)) {
 			if (score > 0.75 && score <= 0.8) {
@@ -158,10 +179,10 @@ module.exports = {
 							.setTitle("[Deleted] Toxic Message Detected!")
 							.setDescription(
 								`Vape Has Detected A Toxic Message!\n
-							 **<:icon_ReplyContinue1:962547429813657611> User**: ${author} | ${author.id}
-							 **<:icon_ReplyContinue3:962547429947867166> Channel**: ${message.channel}
-							 ㅤ
-							 `
+                            **<:icon_ReplyContinue1:962547429813657611> User**: ${author} | ${author.id}
+                            **<:icon_ReplyContinue3:962547429947867166> Channel**: ${message.channel}
+                            ㅤ
+                            `
 							)
 							.addFields(
 								{
@@ -198,10 +219,10 @@ module.exports = {
 							.setTitle("[Timeout] Toxic Message Detected!")
 							.setDescription(
 								`Vape Has Detected A Toxic Message!\n
-							 **<:icon_ReplyContinue1:962547429813657611> User**: ${author} | ${author.id}
-							 **<:icon_ReplyContinue3:962547429947867166> Channel**: ${message.channel}
-							 ㅤ
-							 `
+                            **<:icon_ReplyContinue1:962547429813657611> User**: ${author} | ${author.id}
+                            **<:icon_ReplyContinue3:962547429947867166> Channel**: ${message.channel}
+                            ㅤ
+                            `
 							)
 							.addFields(
 								{
@@ -261,11 +282,11 @@ module.exports = {
 							.setTitle("[Kicked] Toxic Message Detected!")
 							.setDescription(
 								`Vape Has Detected A Toxic Message!\n
-							 
-							 **<:icon_ReplyContinue1:962547429813657611> User**: ${author} | ${author.id}
-							 **<:icon_ReplyContinue3:962547429947867166> Channel**: ${message.channel}
-							 ㅤ
-							 `
+                            
+                            **<:icon_ReplyContinue1:962547429813657611> User**: ${author} | ${author.id}
+                            **<:icon_ReplyContinue3:962547429947867166> Channel**: ${message.channel}
+                            ㅤ
+                            `
 							)
 							.addFields(
 								{
@@ -328,10 +349,10 @@ module.exports = {
 							.setTitle("[Banned] Toxic Message Detected!")
 							.setDescription(
 								`Vape Has Detected A Toxic Message!\n
-							 **<:icon_ReplyContinue1:962547429813657611> User**: ${author} | ${author.id}
-							 **<:icon_ReplyContinue3:962547429947867166> Channel**: ${message.channel}
-							 ㅤ
-							 `
+                            **<:icon_ReplyContinue1:962547429813657611> User**: ${author} | ${author.id}
+                            **<:icon_ReplyContinue3:962547429947867166> Channel**: ${message.channel}
+                            ㅤ
+                            `
 							)
 							.addFields(
 								{
@@ -392,10 +413,10 @@ module.exports = {
 							.setTitle("[Deleted] Toxic Message Detected!")
 							.setDescription(
 								`Vape Has Detected A Toxic Message!\n
-							 **<:icon_ReplyContinue1:962547429813657611> User**: ${author} | ${author.id}
-							 **<:icon_ReplyContinue3:962547429947867166> Channel**: ${message.channel}
-							 ㅤ
-							 `
+                            **<:icon_ReplyContinue1:962547429813657611> User**: ${author} | ${author.id}
+                            **<:icon_ReplyContinue3:962547429947867166> Channel**: ${message.channel}
+                            ㅤ
+                            `
 							)
 							.addFields(
 								{
@@ -432,10 +453,10 @@ module.exports = {
 							.setTitle("[Timeout] Toxic Message Detected!")
 							.setDescription(
 								`Vape Has Detected A Toxic Message!\n
-							 **<:icon_ReplyContinue1:962547429813657611> User**: ${author} | ${author.id}
-							 **<:icon_ReplyContinue3:962547429947867166> Channel**: ${message.channel}
-							 ㅤ
-							 `
+                            **<:icon_ReplyContinue1:962547429813657611> User**: ${author} | ${author.id}
+                            **<:icon_ReplyContinue3:962547429947867166> Channel**: ${message.channel}
+                            ㅤ
+                            `
 							)
 							.addFields(
 								{
@@ -495,11 +516,11 @@ module.exports = {
 							.setTitle("[Kicked] Toxic Message Detected!")
 							.setDescription(
 								`Vape Has Detected A Toxic Message!\n
-							 
-							 **<:icon_ReplyContinue1:962547429813657611> User**: ${author} | ${author.id}
-							 **<:icon_ReplyContinue3:962547429947867166> Channel**: ${message.channel}
-							 ㅤ
-							 `
+                            
+                            **<:icon_ReplyContinue1:962547429813657611> User**: ${author} | ${author.id}
+                            **<:icon_ReplyContinue3:962547429947867166> Channel**: ${message.channel}
+                            ㅤ
+                            `
 							)
 							.addFields(
 								{
@@ -562,10 +583,10 @@ module.exports = {
 							.setTitle("[Banned] Toxic Message Detected!")
 							.setDescription(
 								`Vape Has Detected A Toxic Message!\n
-							 **<:icon_ReplyContinue1:962547429813657611> User**: ${author} | ${author.id}
-							 **<:icon_ReplyContinue3:962547429947867166> Channel**: ${message.channel}
-							 ㅤ
-							 `
+                            **<:icon_ReplyContinue1:962547429813657611> User**: ${author} | ${author.id}
+                            **<:icon_ReplyContinue3:962547429947867166> Channel**: ${message.channel}
+                            ㅤ
+                            `
 							)
 							.addFields(
 								{
@@ -626,10 +647,10 @@ module.exports = {
 							.setTitle("[Deleted] Toxic Message Detected!")
 							.setDescription(
 								`Vape Has Detected A Toxic Message!\n
-							 **<:icon_ReplyContinue1:962547429813657611> User**: ${author} | ${author.id}
-							 **<:icon_ReplyContinue3:962547429947867166> Channel**: ${message.channel}
-							 ㅤ
-							 `
+                            **<:icon_ReplyContinue1:962547429813657611> User**: ${author} | ${author.id}
+                            **<:icon_ReplyContinue3:962547429947867166> Channel**: ${message.channel}
+                            ㅤ
+                            `
 							)
 							.addFields(
 								{
@@ -666,10 +687,10 @@ module.exports = {
 							.setTitle("[Timeout] Toxic Message Detected!")
 							.setDescription(
 								`Vape Has Detected A Toxic Message!\n
-							 **<:icon_ReplyContinue1:962547429813657611> User**: ${author} | ${author.id}
-							 **<:icon_ReplyContinue3:962547429947867166> Channel**: ${message.channel}
-							 ㅤ
-							 `
+                            **<:icon_ReplyContinue1:962547429813657611> User**: ${author} | ${author.id}
+                            **<:icon_ReplyContinue3:962547429947867166> Channel**: ${message.channel}
+                            ㅤ
+                            `
 							)
 							.addFields(
 								{
@@ -729,11 +750,11 @@ module.exports = {
 							.setTitle("[Kicked] Toxic Message Detected!")
 							.setDescription(
 								`Vape Has Detected A Toxic Message!\n
-							 
-							 **<:icon_ReplyContinue1:962547429813657611> User**: ${author} | ${author.id}
-							 **<:icon_ReplyContinue3:962547429947867166> Channel**: ${message.channel}
-							 ㅤ
-							 `
+                            
+                            **<:icon_ReplyContinue1:962547429813657611> User**: ${author} | ${author.id}
+                            **<:icon_ReplyContinue3:962547429947867166> Channel**: ${message.channel}
+                            ㅤ
+                            `
 							)
 							.addFields(
 								{
@@ -796,10 +817,10 @@ module.exports = {
 							.setTitle("[Banned] Toxic Message Detected!")
 							.setDescription(
 								`Vape Has Detected A Toxic Message!\n
-							 **<:icon_ReplyContinue1:962547429813657611> User**: ${author} | ${author.id}
-							 **<:icon_ReplyContinue3:962547429947867166> Channel**: ${message.channel}
-							 ㅤ
-							 `
+                            **<:icon_ReplyContinue1:962547429813657611> User**: ${author} | ${author.id}
+                            **<:icon_ReplyContinue3:962547429947867166> Channel**: ${message.channel}
+                            ㅤ
+                            `
 							)
 							.addFields(
 								{
