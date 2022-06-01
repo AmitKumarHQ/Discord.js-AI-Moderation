@@ -2,10 +2,10 @@
  * Author: Amit Kumar
  * Github: https://github.com/AmitKumarHQ
  * Created On: 10th April 2022
- * Last Modified On: 31th May 2022
+ * Last Modified On: 1st June 2022
  */
 
-const {
+ const {
 	Client,
 	Message,
 	MessageEmbed,
@@ -37,7 +37,7 @@ module.exports = {
 
 		// Database
 		const docs = await DB.findOne({
-			GuildID: guild.id,
+			GuildID: message.guildId,
 		});
 
 		if (!docs) return;
@@ -59,11 +59,12 @@ module.exports = {
 		try {
 			if (
 				BypassUsers.includes(author.id) ||
-				member.permissions.has([
-					`ADMINISTRATOR`,
-					`MODERATE_MEMBERS`,
-					`BAN_MEMBERS`,
-				]) ||
+				(
+					await guild.members.fetch({
+						user: author.id,
+					})
+				).permissions.has(`ADMINISTRATOR`, true) ||
+				author.id === client.user.id ||
 				author.bot
 			) {
 				return;
