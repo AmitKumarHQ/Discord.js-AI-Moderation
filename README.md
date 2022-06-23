@@ -18,5 +18,5 @@ An advanced multi guild AI Moderation for Discord.js bots
 <br/>
 
 ```bash
-npm i chartjs chart.js-node-canvas perspective-api-client
+npm i chart.js chart.js-node-canvas perspective-api-client
 ```
